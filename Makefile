@@ -22,8 +22,8 @@ venv:
 	$(PYTHON) -m venv $(VENV)
 
 install: venv
-	@echo "Installing dependencies..."
-	$(PIP) install -r requirements.txt
+	@echo "Installing package in editable mode..."
+	$(PIP) install -e .
 
 process:
 	@if [ -z "$(INPUT_VIDEO)" ]; then \
