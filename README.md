@@ -60,6 +60,7 @@ if landmarks:
     analysis = analyzer.analyze_results([{"frame_index": 0, "landmarks": landmarks}])
     
     print(f"Knee Angle: {analysis[0]['analysis']['left']['knee_angle']}")
+```
 
 ### From Command Line
 
