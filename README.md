@@ -63,6 +63,13 @@ if landmarks:
 ### From Command Line
 
 ```bash
+skellicap track --input video.mp4
+skellicap analyze --input results.json
+```
+
+#### Direct calls
+
+```bash
 # Process video
 python -m skellicap.cli track --input path/to/video.mp4 --output results.json
 
