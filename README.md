@@ -60,6 +60,16 @@ if landmarks:
     print(f"Left Knee Angle: {analysis[0]['analysis']['left']['knee_angle']} degrees")
 ```
 
+### From Command Line
+
+```bash
+# Process video
+python -m skellicap.cli track --input path/to/video.mp4 --output results.json
+
+# Analyze results
+python -m skellicap.cli analyze --input results.json --output analyzed.json
+```
+
 ## Detected Landmarks
 
 For each frame, the following skeletal points are detected for both left and right sides:
