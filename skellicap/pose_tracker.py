@@ -110,8 +110,9 @@ class PoseTracker:
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             print(f"Error: Could not open video {video_path}")
-            return []
+            return {}
 
+        fps = cap.get(cv2.CAP_PROP_FPS)
         frame_results = []
         frame_count = 0
         
@@ -128,7 +129,13 @@ class PoseTracker:
             frame_count += 1
 
         cap.release()
-        return frame_results
+        return {
+            'metadata': {
+                'fps': fps,
+                'total_frames': frame_count
+            },
+            'frames': frame_results
+        }
 
     def __del__(self):
         if hasattr(self, 'pose'):

@@ -26,9 +26,21 @@ class PoseAnalyzer:
         angle = np.arccos(np.clip(dot_product, -1.0, 1.0))
         return np.degrees(angle)
 
-    def analyze_results(self, tracker_results):
+    def analyze_results(self, tracker_output):
+        # Handle both new {metadata, frames} and old [...] formats
+        if isinstance(tracker_output, dict):
+            tracker_results = tracker_output.get('frames', [])
+            metadata = tracker_output.get('metadata', {})
+        else:
+            tracker_results = tracker_output
+            metadata = {}
+
         if not tracker_results:
-            return []
+            return {}
+
+        fps = metadata.get('fps', 30.0) # Default to 30 if missing
+        ms_per_frame = 1000.0 / fps
+        resolution_error_ms = ms_per_frame  # Error bound is +/- 1 frame duration
 
         # Find global max Y (lowest point in image) for ankles to establish ground level
         left_ankle_ys = [f['landmarks']['left']['ankle']['y'] for f in tracker_results if f['landmarks']]
@@ -95,7 +107,17 @@ class PoseAnalyzer:
         # Detect Strides
         strides = self.detect_strides(analyzed_frames)
         
+        # Post-process strides for temporal metrics
+        for s in strides:
+            s['duration_ms'] = s['duration'] * ms_per_frame
+            s['resolution_error_ms'] = resolution_error_ms
+
         return {
+            'metadata': {
+                **metadata,
+                'ms_per_frame': ms_per_frame,
+                'resolution_error_ms': resolution_error_ms
+            },
             'frames': analyzed_frames,
             'gait_metrics': {
                 'strides': strides
