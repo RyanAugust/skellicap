@@ -36,6 +36,11 @@ You can also specify a custom output path:
 make process INPUT_VIDEO=path/to/video.mp4 OUTPUT_JSON=my_results.json
 ```
 
+To analize a trackpoint file:
+```bash
+make analize OUTPUT_JSON=path/to/trackpoints.json ANALYZED_JSON=analized_results.json
+```
+
 ### As a Module
 
 ```python
