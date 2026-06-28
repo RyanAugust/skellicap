@@ -1,6 +1,6 @@
 # Skellicap
 
-Give me a video of an athlete running from a lateral perspective and I give you a dataset of the position of key skeletal points on each frame
+A Python package for human pose tracking and kinematic analysis of running mechanics using MediaPipe.
 
 ## Installation
 
@@ -25,51 +25,39 @@ make setup
 
 ## Usage
 
-### Using Makefile
+### Workflow
 
-To process a video file:
-```bash
-make process INPUT_VIDEO=path/to/video.mp4
-```
-You can also specify a custom output path:
-```bash
-make process INPUT_VIDEO=path/to/video.mp4 OUTPUT_JSON=my_results.json
-```
+1. **Process Video**: Extract raw landmarks.
+   ```bash
+   make process INPUT_VIDEO=path/to/video.mp4
+   ```
 
-To analize a trackpoint file:
-```bash
-make analize OUTPUT_JSON=path/to/trackpoints.json ANALYZED_JSON=analized_results.json
-```
+2. **Analyze Results**: Calculate angles, velocities, and ground contact.
+   ```bash
+   make analyze
+   ```
 
-### As a Module
+3. **Visualize**: Open `dashboard.html` in your browser and upload the generated `analyzed_results.json`.
+
+### Dashboard Features
+- **Interactive Plots**: Hover over charts to see frame-by-frame data.
+- **Topline Metrics**: Min/max knee angles and average ground contact time.
+- **Quartile Analysis**: Performance summary table divided into four segments of the run.
+
+### Programmatic Usage
 
 ```python
 import cv2
 from skellicap import PoseTracker, PoseAnalyzer
 
-# Initialize tracker
 tracker = PoseTracker()
-frame = cv2.imread("running_human.jpg")
+frame = cv2.imread("running.jpg")
 landmarks = tracker.process_frame(frame)
 
 if landmarks:
-    # Analyze the results
     analyzer = PoseAnalyzer()
-    # Note: analyze_results expects a list of frame data as produced by process_video
-    # or a specifically formatted dictionary for single frames.
     analysis = analyzer.analyze_results([{"frame_index": 0, "landmarks": landmarks}])
-    
-    print(f"Knee Angle: {analysis[0]['analysis']['left']['knee_angle']}")
-```
-
-### From Command Line
-
-```bash
-# Process video
-python -m skellicap.pose_tracker --input path/to/video.mp4 --output results.json
-
-# Analyze results
-python -m skellicap.pose_analyzer --input results.json --output analyzed.json
+    print(f"Left Knee Angle: {analysis[0]['analysis']['left']['knee_angle']} degrees")
 ```
 
 ## Detected Landmarks
@@ -78,4 +66,3 @@ For each frame, the following skeletal points are detected for both left and rig
 - Hip
 - Knee
 - Ankle
-

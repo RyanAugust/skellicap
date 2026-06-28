@@ -9,6 +9,7 @@ PY_VENV = $(BIN)/python
 INPUT_VIDEO ?= 
 OUTPUT_JSON ?= results.json
 ANALYZED_JSON ?= analyzed_results.json
+MIN_STRIDE_FRAMES ?= 10
 
 .PHONY: all setup venv install process analyze clean
 
@@ -38,7 +39,7 @@ analyze:
 		exit 1; \
 	fi
 	@echo "Analyzing results from $(OUTPUT_JSON)..."
-	$(PY_VENV) -m skellicap.pose_analyzer --input "$(OUTPUT_JSON)" --output "$(ANALYZED_JSON)"
+	$(PY_VENV) -m skellicap.pose_analyzer --input "$(OUTPUT_JSON)" --output "$(ANALYZED_JSON)" --min-stride-frames $(MIN_STRIDE_FRAMES)
 
 clean:
 	@echo "Cleaning up..."
