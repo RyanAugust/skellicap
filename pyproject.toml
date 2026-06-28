@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skellicap"
+dynamic = ["version"]
+description = "A Python package for human pose tracking and kinematic analysis of running mechanics using MediaPipe."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Skellicap Contributors"}
+]
+dependencies = [
+    "mediapipe==0.10.13",
+    "opencv-python",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+skellicap = "skellicap.cli:main"
+
+[tool.setuptools.dynamic]
+version = {file = "skellicap/VERSION"}
+
+[tool.setuptools.packages.find]
+include = ["skellicap*"]
+
+[tool.setuptools.package-data]
+skellicap = ["VERSION"]
