@@ -1,6 +1,6 @@
 # Skellicap
 
-A Python module for human pose tracking using MediaPipe.
+Give me a video of an athlete running from a lateral perspective and I give you a dataset of the position of key skeletal points on each frame
 
 ## Installation
 
@@ -73,5 +73,3 @@ For each frame, the following skeletal points are detected for both left and rig
 - Knee
 - Ankle
 
-
-Give me a video of an athlete running from a lateral perspective and I give you a dataset of the position of key skeletal points on each frame
