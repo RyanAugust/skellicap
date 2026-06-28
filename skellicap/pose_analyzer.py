@@ -3,14 +3,16 @@ import math
 import numpy as np
 
 class PoseAnalyzer:
-    def __init__(self, y_vel_threshold=2.0, y_pos_threshold=15.0):
+    def __init__(self, y_vel_threshold=2.0, y_pos_threshold=15.0, min_stride_frames=10):
         """
         Args:
             y_vel_threshold: Max vertical velocity to consider foot stationary (pixels/frame).
             y_pos_threshold: Max distance from the lowest recorded point to consider foot on ground (pixels).
+            min_stride_frames: Minimum frames between consecutive strides for a single foot.
         """
         self.y_vel_threshold = y_vel_threshold
         self.y_pos_threshold = y_pos_threshold
+        self.min_stride_frames = min_stride_frames
 
     def calculate_angle(self, p1, p2, p3):
         """Calculates the angle at p2 given points p1, p2, p3."""
@@ -90,7 +92,63 @@ class PoseAnalyzer:
             analyzed_frames.append(frame_analysis)
             prev_landmarks = landmarks
 
-        return analyzed_frames
+        # Detect Strides
+        strides = self.detect_strides(analyzed_frames)
+        
+        return {
+            'frames': analyzed_frames,
+            'gait_metrics': {
+                'strides': strides
+            }
+        }
+
+    def detect_strides(self, analyzed_frames):
+        """
+        Detects strides based on the transition to ground contact.
+        """
+        strides = []
+        last_global_contact = None  # {side, frame_index, x}
+        last_side_contact_frame = {'left': -self.min_stride_frames, 'right': -self.min_stride_frames}
+        in_contact = {'left': False, 'right': False}
+
+        for frame in analyzed_frames:
+            if not frame.get('analysis'):
+                continue
+            
+            current_frame = frame['frame_index']
+            for side in ['left', 'right']:
+                is_currently_on_ground = frame['analysis'][side]['is_ground_contact']
+                
+                # Detect Initial Contact (False -> True)
+                if is_currently_on_ground and not in_contact[side]:
+                    # Check threshold
+                    if (current_frame - last_side_contact_frame[side]) >= self.min_stride_frames:
+                        current_x = frame['landmarks'][side]['ankle']['x']
+                        
+                        stride_entry = {
+                            'side': side,
+                            'frame_initiated': current_frame,
+                            'duration': 0,
+                            'x_distance': 0.0
+                        }
+                        
+                        if last_global_contact:
+                            stride_entry['duration'] = current_frame - last_global_contact['frame_index']
+                            stride_entry['x_distance'] = abs(current_x - last_global_contact['x'])
+                        
+                        strides.append(stride_entry)
+                        
+                        # Update last contact info
+                        last_global_contact = {
+                            'side': side,
+                            'frame_index': current_frame,
+                            'x': current_x
+                        }
+                        last_side_contact_frame[side] = current_frame
+                
+                in_contact[side] = is_currently_on_ground
+        
+        return strides
 
 if __name__ == "__main__":
     import argparse
@@ -101,6 +159,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, default="analyzed_results.json", help="Path to save analyzed results")
     parser.add_argument("--y-vel", type=float, default=2.0, help="Y velocity threshold for ground contact")
     parser.add_argument("--y-pos", type=float, default=15.0, help="Y position threshold for ground contact")
+    parser.add_argument("--min-stride-frames", type=int, default=10, help="Minimum frames between strides for a foot")
     
     args = parser.parse_args()
 
@@ -111,7 +170,11 @@ if __name__ == "__main__":
     with open(args.input, "r") as f:
         data = json.load(f)
 
-    analyzer = PoseAnalyzer(y_vel_threshold=args.y_vel, y_pos_threshold=args.y_pos)
+    analyzer = PoseAnalyzer(
+        y_vel_threshold=args.y_vel, 
+        y_pos_threshold=args.y_pos,
+        min_stride_frames=args.min_stride_frames
+    )
     results = analyzer.analyze_results(data)
 
     with open(args.output, "w") as f:
