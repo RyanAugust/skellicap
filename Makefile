@@ -31,7 +31,7 @@ process:
 		exit 1; \
 	fi
 	@echo "Processing video: $(INPUT_VIDEO)"
-	$(PY_VENV) -m skellicap.pose_tracker --input "$(INPUT_VIDEO)" --output "$(OUTPUT_JSON)"
+	$(PY_VENV) -m skellicap.cli track --input "$(INPUT_VIDEO)" --output "$(OUTPUT_JSON)"
 
 analyze:
 	@if [ ! -f "$(OUTPUT_JSON)" ]; then \
@@ -39,7 +39,7 @@ analyze:
 		exit 1; \
 	fi
 	@echo "Analyzing results from $(OUTPUT_JSON)..."
-	$(PY_VENV) -m skellicap.pose_analyzer --input "$(OUTPUT_JSON)" --output "$(ANALYZED_JSON)" --min-stride-frames $(MIN_STRIDE_FRAMES)
+	$(PY_VENV) -m skellicap.cli analyze --input "$(OUTPUT_JSON)" --output "$(ANALYZED_JSON)" --min-stride-frames $(MIN_STRIDE_FRAMES)
 
 clean:
 	@echo "Cleaning up..."

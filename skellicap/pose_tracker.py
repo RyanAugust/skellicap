@@ -140,30 +140,3 @@ class PoseTracker:
     def __del__(self):
         if hasattr(self, 'pose'):
             self.pose.close()
-
-if __name__ == "__main__":
-    import argparse
-    import json
-
-    parser = argparse.ArgumentParser(description="Pose Tracking on Video/Images")
-    parser.add_argument("--input", type=str, help="Path to input video file")
-    parser.add_argument("--output", type=str, default="results.json", help="Path to save results as JSON")
-    args = parser.parse_args()
-
-    tracker = PoseTracker()
-
-    if args.input:
-        print(f"Processing video: {args.input}")
-        results = tracker.process_video(args.input)
-        
-        with open(args.output, "w") as f:
-            json.dump(results, f, indent=4)
-        
-        print(f"Results saved to {args.output}")
-    else:
-        # Simple test script
-        print("PoseTracker module loaded. No input video provided. Running smoke test.")
-        # Create a dummy blank image for a basic smoke test
-        dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        results = tracker.process_frame(dummy_frame)
-        print("Smoke test (blank frame) results:", results)

@@ -171,35 +171,3 @@ class PoseAnalyzer:
                 in_contact[side] = is_currently_on_ground
         
         return strides
-
-if __name__ == "__main__":
-    import argparse
-    import os
-
-    parser = argparse.ArgumentParser(description="Analyze Pose Tracking Data")
-    parser.add_argument("--input", type=str, required=True, help="Path to input JSON file from PoseTracker")
-    parser.add_argument("--output", type=str, default="analyzed_results.json", help="Path to save analyzed results")
-    parser.add_argument("--y-vel", type=float, default=2.0, help="Y velocity threshold for ground contact")
-    parser.add_argument("--y-pos", type=float, default=15.0, help="Y position threshold for ground contact")
-    parser.add_argument("--min-stride-frames", type=int, default=10, help="Minimum frames between strides for a foot")
-    
-    args = parser.parse_args()
-
-    if not os.path.exists(args.input):
-        print(f"Error: File {args.input} not found.")
-        exit(1)
-
-    with open(args.input, "r") as f:
-        data = json.load(f)
-
-    analyzer = PoseAnalyzer(
-        y_vel_threshold=args.y_vel, 
-        y_pos_threshold=args.y_pos,
-        min_stride_frames=args.min_stride_frames
-    )
-    results = analyzer.analyze_results(data)
-
-    with open(args.output, "w") as f:
-        json.dump(results, f, indent=4)
-
-    print(f"Analyzed results saved to {args.output}")
