@@ -51,7 +51,7 @@
     <h1>Skellicap Pose Analysis</h1>
     
     <div class="card">
-        <div class="controls">
+        <div class="controls" style="flex-wrap: wrap;">
             <div>
                 <label for="jsonFile">1. Upload <strong>analyzed_results.json</strong>:</label>
                 <input type="file" id="jsonFile" accept=".json">
@@ -59,6 +59,22 @@
             <div>
                 <label for="videoFile">2. (Optional) Upload <strong>Original Video</strong>:</label>
                 <input type="file" id="videoFile" accept="video/*">
+            </div>
+            <div style="border-left: 1px solid #ddd; padding-left: 15px; display: flex; gap: 15px; align-items: center;">
+                <div>
+                    <label for="pixelsPer3ft">Pixels per 3ft:</label>
+                    <input type="number" id="pixelsPer3ft" placeholder="e.g. 300" style="width: 80px;">
+                </div>
+                <div>
+                    <label for="unitSelect">Units:</label>
+                    <select id="unitSelect">
+                        <option value="px">Pixels</option>
+                        <option value="m/s">m/s</option>
+                        <option value="ft/s">ft/s</option>
+                        <option value="mph">mph</option>
+                        <option value="kph">kph</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
@@ -127,12 +143,23 @@
     </div>
 
     <script>
+        let rawDataStored = null;
         let analysisData = null;
         let gaitMetrics = null;
+        let charts = {};
         const video = document.getElementById('videoPlayer');
         const canvas = document.getElementById('overlayCanvas');
         const ctx = canvas.getContext('2d');
         const videoStats = document.getElementById('video-stats');
+
+        const pixelsInput = document.getElementById('pixelsPer3ft');
+        const unitSelect = document.getElementById('unitSelect');
+
+        [pixelsInput, unitSelect].forEach(el => {
+            el.addEventListener('change', () => {
+                if (rawDataStored) processAndDisplay(rawDataStored);
+            });
+        });
 
         document.getElementById('jsonFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -140,11 +167,31 @@
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                const data = JSON.parse(e.target.result);
-                processAndDisplay(data);
+                rawDataStored = JSON.parse(e.target.result);
+                processAndDisplay(rawDataStored);
             };
             reader.readAsText(file);
         });
+
+        function getConversionFactor() {
+            const px3ft = parseFloat(pixelsInput.value);
+            if (!px3ft || px3ft <= 0) return { factor: 1, unit: 'px', speedFactor: 1 };
+
+            const unit = unitSelect.value;
+            const fps = (window.currentMetadata && window.currentMetadata.fps) ? window.currentMetadata.fps : 30;
+
+            if (unit === 'px') return { factor: 1, unit: 'px', speedFactor: 1 };
+            
+            const ftPerPx = 3 / px3ft;
+            const mPerPx = 0.9144 / px3ft;
+
+            if (unit === 'ft/s') return { factor: ftPerPx, unit: 'ft', speedFactor: ftPerPx * fps, speedUnit: 'ft/s' };
+            if (unit === 'm/s') return { factor: mPerPx, unit: 'm', speedFactor: mPerPx * fps, speedUnit: 'm/s' };
+            if (unit === 'mph') return { factor: ftPerPx, unit: 'ft', speedFactor: (ftPerPx * fps) * 3600 / 5280, speedUnit: 'mph' };
+            if (unit === 'kph') return { factor: mPerPx, unit: 'm', speedFactor: (mPerPx * fps) * 3600 / 1000, speedUnit: 'kph' };
+
+            return { factor: 1, unit: 'px', speedFactor: 1 };
+        }
 
         document.getElementById('videoFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -231,11 +278,14 @@
                         .find(s => s.frame_initiated <= currentFrame);
                     
                     if (lastStride) {
+                        const conv = getConversionFactor();
+                        const dist = (lastStride.x_distance * conv.factor).toFixed(1);
+                        const unit = conv.unit;
                         videoStats.innerHTML = `
                             Last Stride (${lastStride.side.toUpperCase()}): 
                             Frame ${lastStride.frame_initiated} | 
                             Duration: ${lastStride.duration} f | 
-                            Distance: ${lastStride.x_distance.toFixed(1)} px
+                            Distance: ${dist} ${unit}
                         `;
                     }
                 }
@@ -271,14 +321,32 @@
         function getStats(data) {
             const leftAngles = data.map(f => f.analysis.left.knee_angle);
             const rightAngles = data.map(f => f.analysis.right.knee_angle);
+            const leftVels = data.map(f => f.analysis.left.velocity.aggregate);
+            const rightVels = data.map(f => f.analysis.right.velocity.aggregate);
+
+            // Stride distances for this slice
+            // Note: This matches strides that *initiated* in this data slice
+            const sliceStart = data[0].frame_index;
+            const sliceEnd = data[data.length - 1].frame_index;
+            const sliceStrides = (gaitMetrics && gaitMetrics.strides) ? 
+                gaitMetrics.strides.filter(s => s.frame_initiated >= sliceStart && s.frame_initiated <= sliceEnd) : [];
+
+            const leftStrides = sliceStrides.filter(s => s.side === 'left').map(s => s.x_distance);
+            const rightStrides = sliceStrides.filter(s => s.side === 'right').map(s => s.x_distance);
+
+            const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
             return {
-                minLeft: Math.min(...leftAngles).toFixed(1),
-                maxLeft: Math.max(...leftAngles).toFixed(1),
-                minRight: Math.min(...rightAngles).toFixed(1),
-                maxRight: Math.max(...rightAngles).toFixed(1),
+                minLeft: leftAngles.length ? Math.min(...leftAngles).toFixed(1) : 0,
+                maxLeft: leftAngles.length ? Math.max(...leftAngles).toFixed(1) : 0,
+                minRight: rightAngles.length ? Math.min(...rightAngles).toFixed(1) : 0,
+                maxRight: rightAngles.length ? Math.max(...rightAngles).toFixed(1) : 0,
                 gctLeft: calculateGCT(data, 'left'),
-                gctRight: calculateGCT(data, 'right')
+                gctRight: calculateGCT(data, 'right'),
+                avgVelLeft: avg(leftVels),
+                avgVelRight: avg(rightVels),
+                avgStrideLeft: avg(leftStrides),
+                avgStrideRight: avg(rightStrides)
             };
         }
 
@@ -289,6 +357,7 @@
             const metadata = rawData.metadata || { fps: 30.0 };
             
             // Set global data for video overlay
+            rawDataStored = rawData;
             analysisData = frames;
             gaitMetrics = gm;
             window.currentMetadata = metadata;
@@ -297,6 +366,8 @@
 
             // Trim null values (where landmarks or analysis might be missing)
             const data = frames.filter(f => f.landmarks && f.analysis);
+            if (data.length === 0) return;
+            
             document.getElementById('dashboard').style.display = 'block';
             
             // Start overlay loop if video is loaded
@@ -329,6 +400,9 @@
 
         function renderStrideTable(strides) {
             const container = document.getElementById('stride-container');
+            const conv = getConversionFactor();
+            const distHeader = `Distance (${conv.unit})`;
+
             if (!container) {
                 const card = document.createElement('div');
                 card.className = 'card';
@@ -341,7 +415,7 @@
                                 <th>Side</th>
                                 <th>Duration (ms)</th>
                                 <th>+/- Error (ms)</th>
-                                <th>X Distance (Pixels)</th>
+                                <th id="strideDistHeader">${distHeader}</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -349,6 +423,8 @@
                 `;
                 document.getElementById('dashboard').insertBefore(card, document.querySelector('.card:last-of-type'));
                 card.id = 'stride-container';
+            } else {
+                document.getElementById('strideDistHeader').textContent = distHeader;
             }
             
             const tbody = document.querySelector('#strideTable tbody');
@@ -357,12 +433,13 @@
                 const tr = document.createElement('tr');
                 const durMs = s.duration_ms ? s.duration_ms.toFixed(1) : '-';
                 const errMs = s.resolution_error_ms ? s.resolution_error_ms.toFixed(1) : '-';
+                const distConverted = (s.x_distance * conv.factor).toFixed(1);
                 tr.innerHTML = `
                     <td>${s.frame_initiated}</td>
                     <td>${s.side}</td>
                     <td>${durMs}</td>
                     <td>${errMs}</td>
-                    <td>${s.x_distance.toFixed(1)}</td>
+                    <td>${distConverted}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -370,9 +447,12 @@
 
         function renderCharts(data) {
             const labels = data.map(f => f.frame_index);
+            const conv = getConversionFactor();
+            const speedUnit = conv.speedUnit || 'px/f';
 
             // Angle Chart
-            new Chart(document.getElementById('angleChart'), {
+            if (charts.angle) charts.angle.destroy();
+            charts.angle = new Chart(document.getElementById('angleChart'), {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -385,13 +465,14 @@
             });
 
             // Velocity Chart
-            new Chart(document.getElementById('velocityChart'), {
+            if (charts.velocity) charts.velocity.destroy();
+            charts.velocity = new Chart(document.getElementById('velocityChart'), {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Left Ankle', data: data.map(f => f.analysis.left.velocity.aggregate), borderColor: '#3498db', fill: false, tension: 0.1 },
-                        { label: 'Right Ankle', data: data.map(f => f.analysis.right.velocity.aggregate), borderColor: '#9b59b6', fill: false, tension: 0.1 }
+                        { label: `Left Ankle (${speedUnit})`, data: data.map(f => f.analysis.left.velocity.aggregate * conv.speedFactor), borderColor: '#3498db', fill: false, tension: 0.1 },
+                        { label: `Right Ankle (${speedUnit})`, data: data.map(f => f.analysis.right.velocity.aggregate * conv.speedFactor), borderColor: '#9b59b6', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -399,9 +480,30 @@
         }
 
         function renderQuartileTable(data) {
-            const tbody = document.querySelector('#quartileTable tbody');
-            tbody.innerHTML = '';
+            const table = document.getElementById('quartileTable');
+            const conv = getConversionFactor();
+            const speedUnit = conv.speedUnit || 'px/f';
+            const distUnit = conv.unit;
+            
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Quartile</th>
+                        <th>Side</th>
+                        <th>Min Angle</th>
+                        <th>Max Angle</th>
+                        <th>Avg GCT (ms)</th>
+                        <th>Avg Vel (${speedUnit})</th>
+                        <th>Avg Stride (${distUnit})</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            
+            const tbody = table.querySelector('tbody');
             const qSize = Math.floor(data.length / 4);
+            const metadata = window.currentMetadata || { fps: 30.0 };
+            const msPerFrame = metadata.ms_per_frame || (1000.0 / metadata.fps);
 
             for (let i = 0; i < 4; i++) {
                 const qData = data.slice(i * qSize, (i + 1) * qSize);
@@ -411,12 +513,19 @@
                 
                 ['Left', 'Right'].forEach(side => {
                     const tr = document.createElement('tr');
+                    const isLeft = side === 'Left';
+                    const gct = isLeft ? qStats.gctLeft : qStats.gctRight;
+                    const vel = isLeft ? qStats.avgVelLeft : qStats.avgVelRight;
+                    const stride = isLeft ? qStats.avgStrideLeft : qStats.avgStrideRight;
+
                     tr.innerHTML = `
                         <td>Q${i + 1}</td>
                         <td>${side}</td>
-                        <td>${side === 'Left' ? qStats.minLeft : qStats.minRight}°</td>
-                        <td>${side === 'Left' ? qStats.maxLeft : qStats.maxRight}°</td>
-                        <td>${side === 'Left' ? qStats.gctLeft : qStats.gctRight}</td>
+                        <td>${isLeft ? qStats.minLeft : qStats.minRight}°</td>
+                        <td>${isLeft ? qStats.maxLeft : qStats.maxRight}°</td>
+                        <td>${(gct * msPerFrame).toFixed(1)}</td>
+                        <td>${(vel * conv.speedFactor).toFixed(1)}</td>
+                        <td>${(stride * conv.factor).toFixed(1)}</td>
                     `;
                     tbody.appendChild(tr);
                 });
