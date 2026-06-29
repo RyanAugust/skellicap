@@ -96,7 +96,7 @@ class PoseTracker:
         # Define colors (BGR)
         colors = {
             'left': (0, 255, 0),   # Green
-            'right': (0, 0, 255)   # Red
+            'right': (255, 0, 0)   # Blue
         }
 
         for side in ['left', 'right']:

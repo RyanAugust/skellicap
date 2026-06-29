@@ -272,7 +272,7 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 if (frameData && frameData.landmarks) {
-                    const colors = { left: '#00ff00', right: '#ff0000' };
+                    const colors = { left: '#00ff00', right: '#3498db' };
                     
                     ['left', 'right'].forEach(side => {
                         const l = frameData.landmarks[side];
@@ -553,7 +553,7 @@
                     labels: labels,
                     datasets: [
                         { label: 'Left Knee', data: data.map(f => f.analysis.left.knee_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
-                        { label: 'Right Knee', data: data.map(f => f.analysis.right.knee_angle), borderColor: '#e74c3c', fill: false, tension: 0.1 }
+                        { label: 'Right Knee', data: data.map(f => f.analysis.right.knee_angle), borderColor: '#3498db', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -567,7 +567,7 @@
                     labels: labels,
                     datasets: [
                         { label: 'Left Ankle', data: data.map(f => f.analysis.left.ankle_angle), borderColor: '#2ecc71', borderDash: [5, 5], fill: false, tension: 0.1 },
-                        { label: 'Right Ankle', data: data.map(f => f.analysis.right.ankle_angle), borderColor: '#e74c3c', borderDash: [5, 5], fill: false, tension: 0.1 }
+                        { label: 'Right Ankle', data: data.map(f => f.analysis.right.ankle_angle), borderColor: '#3498db', borderDash: [5, 5], fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -581,7 +581,7 @@
                     labels: labels,
                     datasets: [
                         { label: 'Left Hip', data: data.map(f => f.analysis.left.hip_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
-                        { label: 'Right Hip', data: data.map(f => f.analysis.right.hip_angle), borderColor: '#e74c3c', fill: false, tension: 0.1 }
+                        { label: 'Right Hip', data: data.map(f => f.analysis.right.hip_angle), borderColor: '#3498db', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -595,7 +595,7 @@
                     labels: labels,
                     datasets: [
                         { label: 'Left Shoulder', data: data.map(f => f.analysis.left.shoulder_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
-                        { label: 'Right Shoulder', data: data.map(f => f.analysis.right.shoulder_angle), borderColor: '#e74c3c', fill: false, tension: 0.1 }
+                        { label: 'Right Shoulder', data: data.map(f => f.analysis.right.shoulder_angle), borderColor: '#3498db', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -609,7 +609,7 @@
                     labels: labels,
                     datasets: [
                         { label: 'Left Elbow', data: data.map(f => f.analysis.left.elbow_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
-                        { label: 'Right Elbow', data: data.map(f => f.analysis.right.elbow_angle), borderColor: '#e74c3c', fill: false, tension: 0.1 }
+                        { label: 'Right Elbow', data: data.map(f => f.analysis.right.elbow_angle), borderColor: '#3498db', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -622,8 +622,8 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: `Left Ankle (${speedUnit})`, data: data.map(f => f.analysis.left.velocity.aggregate * conv.speedFactor), borderColor: '#3498db', fill: false, tension: 0.1 },
-                        { label: `Right Ankle (${speedUnit})`, data: data.map(f => f.analysis.right.velocity.aggregate * conv.speedFactor), borderColor: '#9b59b6', fill: false, tension: 0.1 }
+                        { label: `Left Ankle (${speedUnit})`, data: data.map(f => f.analysis.left.velocity.aggregate * conv.speedFactor), borderColor: '#2ecc71', fill: false, tension: 0.1 },
+                        { label: `Right Ankle (${speedUnit})`, data: data.map(f => f.analysis.right.velocity.aggregate * conv.speedFactor), borderColor: '#3498db', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
