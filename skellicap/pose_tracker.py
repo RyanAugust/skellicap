@@ -20,7 +20,9 @@ class PoseTracker:
             'left_knee': self.mp_pose.PoseLandmark.LEFT_KNEE,
             'right_knee': self.mp_pose.PoseLandmark.RIGHT_KNEE,
             'left_ankle': self.mp_pose.PoseLandmark.LEFT_ANKLE,
-            'right_ankle': self.mp_pose.PoseLandmark.RIGHT_ANKLE
+            'right_ankle': self.mp_pose.PoseLandmark.RIGHT_ANKLE,
+            'left_foot_index': self.mp_pose.PoseLandmark.LEFT_FOOT_INDEX,
+            'right_foot_index': self.mp_pose.PoseLandmark.RIGHT_FOOT_INDEX
         }
 
     def process_frame(self, frame):
@@ -53,7 +55,9 @@ class PoseTracker:
             'left_knee': ('left', 'knee'),
             'right_knee': ('right', 'knee'),
             'left_ankle': ('left', 'ankle'),
-            'right_ankle': ('right', 'ankle')
+            'right_ankle': ('right', 'ankle'),
+            'left_foot_index': ('left', 'foot_index'),
+            'right_foot_index': ('right', 'foot_index')
         }
 
         for name, index in self.landmarks_indices.items():
@@ -100,6 +104,9 @@ class PoseTracker:
             if 'knee' in parts and 'ankle' in parts:
                 cv2.line(output_frame, (parts['knee']['x'], parts['knee']['y']),
                          (parts['ankle']['x'], parts['ankle']['y']), color, 2)
+            if 'ankle' in parts and 'foot_index' in parts:
+                cv2.line(output_frame, (parts['ankle']['x'], parts['ankle']['y']),
+                         (parts['foot_index']['x'], parts['foot_index']['y']), color, 2)
 
         return output_frame
 

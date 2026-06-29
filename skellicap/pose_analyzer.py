@@ -42,12 +42,12 @@ class PoseAnalyzer:
         ms_per_frame = 1000.0 / fps
         resolution_error_ms = ms_per_frame  # Error bound is +/- 1 frame duration
 
-        # Find global max Y (lowest point in image) for ankles to establish ground level
-        left_ankle_ys = [f['landmarks']['left']['ankle']['y'] for f in tracker_results if f['landmarks']]
-        right_ankle_ys = [f['landmarks']['right']['ankle']['y'] for f in tracker_results if f['landmarks']]
+        # Find global max Y (lowest point in image) for foot_index to establish ground level
+        left_toe_ys = [f['landmarks']['left']['foot_index']['y'] for f in tracker_results if f['landmarks'] and 'foot_index' in f['landmarks']['left']]
+        right_toe_ys = [f['landmarks']['right']['foot_index']['y'] for f in tracker_results if f['landmarks'] and 'foot_index' in f['landmarks']['right']]
         
-        max_y_left = max(left_ankle_ys) if left_ankle_ys else 0
-        max_y_right = max(right_ankle_ys) if right_ankle_ys else 0
+        max_y_left = max(left_toe_ys) if left_toe_ys else 0
+        max_y_right = max(right_toe_ys) if right_toe_ys else 0
 
         analyzed_frames = []
         prev_landmarks = None
@@ -74,18 +74,27 @@ class PoseAnalyzer:
                 hip = side_data['hip']
                 knee = side_data['knee']
                 ankle = side_data['ankle']
+                toe = side_data.get('foot_index')
 
-                # 1. Calculate Knee Angle
+                # 1. Calculate Knee Angle (hip-knee-ankle)
                 knee_angle = self.calculate_angle(hip, knee, ankle)
                 frame_analysis['analysis'][side]['knee_angle'] = knee_angle
 
-                # 2. Calculate Velocities
+                # 2. Calculate Ankle Angle (knee-ankle-toe)
+                ankle_angle = 0.0
+                if toe:
+                    ankle_angle = self.calculate_angle(knee, ankle, toe)
+                frame_analysis['analysis'][side]['ankle_angle'] = ankle_angle
+
+                # 3. Calculate Velocities (Based on toe if available, else ankle)
+                ref_point = toe if toe else ankle
                 vx, vy, v_agg = 0.0, 0.0, 0.0
                 if prev_landmarks and prev_landmarks[side]:
-                    prev_ankle = prev_landmarks[side]['ankle']
-                    vx = ankle['x'] - prev_ankle['x']
-                    vy = ankle['y'] - prev_ankle['y']
-                    v_agg = math.sqrt(vx**2 + vy**2)
+                    prev_ref = prev_landmarks[side].get('foot_index') if toe else prev_landmarks[side]['ankle']
+                    if prev_ref:
+                        vx = ref_point['x'] - prev_ref['x']
+                        vy = ref_point['y'] - prev_ref['y']
+                        v_agg = math.sqrt(vx**2 + vy**2)
 
                 frame_analysis['analysis'][side]['velocity'] = {
                     'x': vx,
@@ -93,10 +102,10 @@ class PoseAnalyzer:
                     'aggregate': v_agg
                 }
 
-                # 3. Ground Contact Detection
+                # 4. Ground Contact Detection (Based on toe)
                 # Higher Y in pixel coordinates is lower in the frame (closer to ground)
                 ground_ref = max_y_left if side == 'left' else max_y_right
-                is_near_ground = (ground_ref - ankle['y']) <= self.y_pos_threshold
+                is_near_ground = (ground_ref - ref_point['y']) <= self.y_pos_threshold
                 is_stationary_y = abs(vy) <= self.y_vel_threshold
                 
                 frame_analysis['analysis'][side]['is_ground_contact'] = bool(is_near_ground and is_stationary_y)

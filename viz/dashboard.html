@@ -95,19 +95,24 @@
                 <span class="stat-label">Valid Frames</span>
             </div>
             <div class="stat-box" style="border-left-color: #2ecc71;">
-                <span class="stat-value" id="min-angle-left">-</span>
-                <span class="stat-label">Min Knee Angle (L/R)</span>
-                <span id="min-angle-right">-</span>
+                <span class="stat-value" id="min-knee-val">-</span>
+                <span class="stat-label">Min Knee Angle (L / R)</span>
             </div>
             <div class="stat-box" style="border-left-color: #e74c3c;">
-                <span class="stat-value" id="max-angle-left">-</span>
-                <span class="stat-label">Max Knee Angle (L/R)</span>
-                <span id="max-angle-right">-</span>
+                <span class="stat-value" id="max-knee-val">-</span>
+                <span class="stat-label">Max Knee Angle (L / R)</span>
+            </div>
+            <div class="stat-box" style="border-left-color: #2ecc71; border-left-style: dashed;">
+                <span class="stat-value" id="min-ankle-val">-</span>
+                <span class="stat-label">Min Ankle Angle (L / R)</span>
+            </div>
+            <div class="stat-box" style="border-left-color: #e74c3c; border-left-style: dashed;">
+                <span class="stat-value" id="max-ankle-val">-</span>
+                <span class="stat-label">Max Ankle Angle (L / R)</span>
             </div>
             <div class="stat-box" style="border-left-color: #f1c40f;">
-                <span class="stat-value" id="gct-left">-</span>
-                <span class="stat-label">Avg Ground Contact (ms) (L/R)</span>
-                <span id="gct-right">-</span>
+                <span class="stat-value" id="gct-val">-</span>
+                <span class="stat-label">Avg GCT (L / R)</span>
             </div>
         </div>
 
@@ -115,6 +120,13 @@
             <h2>Knee Angles Over Time</h2>
             <div class="chart-container">
                 <canvas id="angleChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Ankle Angles Over Time</h2>
+            <div class="chart-container">
+                <canvas id="ankleAngleChart"></canvas>
             </div>
         </div>
 
@@ -236,11 +248,13 @@
                     const color = colors[side];
 
                     // Draw points
-                    [l.hip, l.knee, l.ankle].forEach(p => {
-                        ctx.fillStyle = color;
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-                        ctx.fill();
+                    [l.hip, l.knee, l.ankle, l.foot_index].forEach(p => {
+                        if (p) {
+                            ctx.fillStyle = color;
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
                     });
 
                     // Draw bones
@@ -250,6 +264,9 @@
                     ctx.moveTo(l.hip.x, l.hip.y);
                     ctx.lineTo(l.knee.x, l.knee.y);
                     ctx.lineTo(l.ankle.x, l.ankle.y);
+                    if (l.foot_index) {
+                        ctx.lineTo(l.foot_index.x, l.foot_index.y);
+                    }
                     ctx.stroke();
 
                     // Draw Angle text
@@ -257,16 +274,26 @@
                     ctx.strokeStyle = 'black';
                     ctx.lineWidth = 1;
                     ctx.font = '24px Arial';
-                    const angleText = `${a.knee_angle.toFixed(1)}°`;
-                    ctx.fillText(angleText, l.knee.x + 15, l.knee.y);
-                    ctx.strokeText(angleText, l.knee.x + 15, l.knee.y);
+                    
+                    // Knee Angle
+                    const kneeText = `${a.knee_angle.toFixed(1)}°`;
+                    ctx.fillText(kneeText, l.knee.x + 15, l.knee.y);
+                    ctx.strokeText(kneeText, l.knee.x + 15, l.knee.y);
 
-                    // Ground Contact Visualizer
+                    // Ankle Angle
+                    if (a.ankle_angle) {
+                        const ankleText = `${a.ankle_angle.toFixed(1)}°`;
+                        ctx.fillText(ankleText, l.ankle.x + 15, l.ankle.y);
+                        ctx.strokeText(ankleText, l.ankle.x + 15, l.ankle.y);
+                    }
+
+                    // Ground Contact Visualizer (Centered on toe/foot_index)
                     if (a.is_ground_contact) {
+                        const pulsePoint = l.foot_index || l.ankle;
                         ctx.strokeStyle = '#f1c40f';
                         ctx.lineWidth = 5;
                         ctx.beginPath();
-                        ctx.arc(l.ankle.x, l.ankle.y, 15, 0, Math.PI * 2);
+                        ctx.arc(pulsePoint.x, pulsePoint.y, 15, 0, Math.PI * 2);
                         ctx.stroke();
                     }
                 });
@@ -319,13 +346,15 @@
         }
 
         function getStats(data) {
-            const leftAngles = data.map(f => f.analysis.left.knee_angle);
-            const rightAngles = data.map(f => f.analysis.right.knee_angle);
+            const leftKneeAngles = data.map(f => f.analysis.left.knee_angle);
+            const rightKneeAngles = data.map(f => f.analysis.right.knee_angle);
+            const leftAnkleAngles = data.map(f => f.analysis.left.ankle_angle || 0);
+            const rightAnkleAngles = data.map(f => f.analysis.right.ankle_angle || 0);
+            
             const leftVels = data.map(f => f.analysis.left.velocity.aggregate);
             const rightVels = data.map(f => f.analysis.right.velocity.aggregate);
 
             // Stride distances for this slice
-            // Note: This matches strides that *initiated* in this data slice
             const sliceStart = data[0].frame_index;
             const sliceEnd = data[data.length - 1].frame_index;
             const sliceStrides = (gaitMetrics && gaitMetrics.strides) ? 
@@ -337,10 +366,16 @@
             const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
             return {
-                minLeft: leftAngles.length ? Math.min(...leftAngles).toFixed(1) : 0,
-                maxLeft: leftAngles.length ? Math.max(...leftAngles).toFixed(1) : 0,
-                minRight: rightAngles.length ? Math.min(...rightAngles).toFixed(1) : 0,
-                maxRight: rightAngles.length ? Math.max(...rightAngles).toFixed(1) : 0,
+                minKneeLeft: leftKneeAngles.length ? Math.min(...leftKneeAngles).toFixed(1) : 0,
+                maxKneeLeft: leftKneeAngles.length ? Math.max(...leftKneeAngles).toFixed(1) : 0,
+                minAnkleLeft: leftAnkleAngles.length ? Math.min(...leftAnkleAngles).toFixed(1) : 0,
+                maxAnkleLeft: leftAnkleAngles.length ? Math.max(...leftAnkleAngles).toFixed(1) : 0,
+                
+                minKneeRight: rightKneeAngles.length ? Math.min(...rightKneeAngles).toFixed(1) : 0,
+                maxKneeRight: rightKneeAngles.length ? Math.max(...rightKneeAngles).toFixed(1) : 0,
+                minAnkleRight: rightAnkleAngles.length ? Math.min(...rightAnkleAngles).toFixed(1) : 0,
+                maxAnkleRight: rightAnkleAngles.length ? Math.max(...rightAnkleAngles).toFixed(1) : 0,
+
                 gctLeft: calculateGCT(data, 'left'),
                 gctRight: calculateGCT(data, 'right'),
                 avgVelLeft: avg(leftVels),
@@ -381,12 +416,13 @@
             const gctRightMs = (parseFloat(stats.gctRight) * msPerFrame).toFixed(1);
 
             document.getElementById('total-frames').textContent = data.length;
-            document.getElementById('min-angle-left').textContent = `${stats.minLeft}°`;
-            document.getElementById('min-angle-right').textContent = `${stats.minRight}°`;
-            document.getElementById('max-angle-left').textContent = `${stats.maxLeft}°`;
-            document.getElementById('max-angle-right').textContent = `${stats.maxRight}°`;
-            document.getElementById('gct-left').textContent = `${gctLeftMs} ms`;
-            document.getElementById('gct-right').textContent = `${gctRightMs} ms`;
+            
+            document.getElementById('min-knee-val').textContent = `${stats.minKneeLeft}° / ${stats.minKneeRight}°`;
+            document.getElementById('max-knee-val').textContent = `${stats.maxKneeLeft}° / ${stats.maxKneeRight}°`;
+            document.getElementById('min-ankle-val').textContent = `${stats.minAnkleLeft}° / ${stats.minAnkleRight}°`;
+            document.getElementById('max-ankle-val').textContent = `${stats.maxAnkleLeft}° / ${stats.maxAnkleRight}°`;
+            
+            document.getElementById('gct-val').textContent = `${gctLeftMs}ms / ${gctRightMs}ms`;
 
             // Charts
             renderCharts(data);
@@ -450,7 +486,7 @@
             const conv = getConversionFactor();
             const speedUnit = conv.speedUnit || 'px/f';
 
-            // Angle Chart
+            // Knee Angle Chart
             if (charts.angle) charts.angle.destroy();
             charts.angle = new Chart(document.getElementById('angleChart'), {
                 type: 'line',
@@ -459,6 +495,20 @@
                     datasets: [
                         { label: 'Left Knee', data: data.map(f => f.analysis.left.knee_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
                         { label: 'Right Knee', data: data.map(f => f.analysis.right.knee_angle), borderColor: '#e74c3c', fill: false, tension: 0.1 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
+            });
+
+            // Ankle Angle Chart
+            if (charts.ankleAngle) charts.ankleAngle.destroy();
+            charts.ankleAngle = new Chart(document.getElementById('ankleAngleChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Left Ankle', data: data.map(f => f.analysis.left.ankle_angle), borderColor: '#2ecc71', borderDash: [5, 5], fill: false, tension: 0.1 },
+                        { label: 'Right Ankle', data: data.map(f => f.analysis.right.ankle_angle), borderColor: '#e74c3c', borderDash: [5, 5], fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -490,8 +540,8 @@
                     <tr>
                         <th>Quartile</th>
                         <th>Side</th>
-                        <th>Min Angle</th>
-                        <th>Max Angle</th>
+                        <th>Min Knee/Ankle</th>
+                        <th>Max Knee/Ankle</th>
                         <th>Avg GCT (ms)</th>
                         <th>Avg Vel (${speedUnit})</th>
                         <th>Avg Stride (${distUnit})</th>
@@ -521,9 +571,9 @@
                     tr.innerHTML = `
                         <td>Q${i + 1}</td>
                         <td>${side}</td>
-                        <td>${isLeft ? qStats.minLeft : qStats.minRight}°</td>
-                        <td>${isLeft ? qStats.maxLeft : qStats.maxRight}°</td>
-                        <td>${(gct * msPerFrame).toFixed(1)}</td>
+                        <td>${isLeft ? qStats.minKneeLeft : qStats.minKneeRight}° / ${isLeft ? qStats.minAnkleLeft : qStats.minAnkleRight}°</td>
+                        <td>${isLeft ? qStats.maxKneeLeft : qStats.maxKneeRight}° / ${isLeft ? qStats.maxAnkleLeft : qStats.maxAnkleRight}°</td>
+                        <td>${(parseFloat(gct) * msPerFrame).toFixed(1)}</td>
                         <td>${(vel * conv.speedFactor).toFixed(1)}</td>
                         <td>${(stride * conv.factor).toFixed(1)}</td>
                     `;
