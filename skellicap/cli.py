@@ -5,8 +5,12 @@ from .pose_tracker import PoseTracker
 from .pose_analyzer import PoseAnalyzer
 
 def run_tracker(args):
-    tracker = PoseTracker()
-    print(f"Processing video: {args.input}")
+    tracker = PoseTracker(
+        model_complexity=args.complexity,
+        min_detection_confidence=args.min_det_conf,
+        min_tracking_confidence=args.min_track_conf
+    )
+    print(f"Processing video: {args.input} (Complexity: {args.complexity})")
     results = tracker.process_video(args.input)
     
     with open(args.output, "w") as f:
@@ -42,6 +46,9 @@ def main():
     track_parser = subparsers.add_parser("track", help="Extract raw landmarks from video")
     track_parser.add_argument("--input", type=str, required=True, help="Path to input video file")
     track_parser.add_argument("--output", type=str, default="results.json", help="Path to save results as JSON")
+    track_parser.add_argument("--complexity", type=int, default=2, choices=[0, 1, 2], help="MediaPipe model complexity (2 is most accurate)")
+    track_parser.add_argument("--min-det-conf", type=float, default=0.5, help="Minimum detection confidence")
+    track_parser.add_argument("--min-track-conf", type=float, default=0.5, help="Minimum tracking confidence")
 
     # Analyze command
     analyze_parser = subparsers.add_parser("analyze", help="Perform kinematic analysis on landmarks")
