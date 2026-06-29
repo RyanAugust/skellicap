@@ -95,29 +95,24 @@
                 <span class="stat-label">Valid Frames</span>
             </div>
             <div class="stat-box" style="border-left-color: #2ecc71;">
-                <span class="stat-value" id="min-angle-left">-</span>
-                <span class="stat-label">Min Knee/Ankle Angle (L)</span>
-                <span id="min-ankle-left">-</span>
+                <span class="stat-value" id="min-knee-val">-</span>
+                <span class="stat-label">Min Knee Angle (L / R)</span>
             </div>
             <div class="stat-box" style="border-left-color: #e74c3c;">
-                <span class="stat-value" id="max-angle-left">-</span>
-                <span class="stat-label">Max Knee/Ankle Angle (L)</span>
-                <span id="max-ankle-left">-</span>
+                <span class="stat-value" id="max-knee-val">-</span>
+                <span class="stat-label">Max Knee Angle (L / R)</span>
             </div>
-            <div class="stat-box" style="border-left-color: #2ecc71; opacity: 0.8;">
-                <span class="stat-value" id="min-angle-right">-</span>
-                <span class="stat-label">Min Knee/Ankle Angle (R)</span>
-                <span id="min-ankle-right">-</span>
+            <div class="stat-box" style="border-left-color: #2ecc71; border-left-style: dashed;">
+                <span class="stat-value" id="min-ankle-val">-</span>
+                <span class="stat-label">Min Ankle Angle (L / R)</span>
             </div>
-            <div class="stat-box" style="border-left-color: #e74c3c; opacity: 0.8;">
-                <span class="stat-value" id="max-angle-right">-</span>
-                <span class="stat-label">Max Knee/Ankle Angle (R)</span>
-                <span id="max-ankle-right">-</span>
+            <div class="stat-box" style="border-left-color: #e74c3c; border-left-style: dashed;">
+                <span class="stat-value" id="max-ankle-val">-</span>
+                <span class="stat-label">Max Ankle Angle (L / R)</span>
             </div>
             <div class="stat-box" style="border-left-color: #f1c40f;">
-                <span class="stat-value" id="gct-left">-</span>
-                <span class="stat-label">Avg GCT (ms) (L/R)</span>
-                <span id="gct-right">-</span>
+                <span class="stat-value" id="gct-val">-</span>
+                <span class="stat-label">Avg GCT (L / R)</span>
             </div>
         </div>
 
@@ -422,13 +417,12 @@
 
             document.getElementById('total-frames').textContent = data.length;
             
-            document.getElementById('min-angle-left').textContent = `${stats.minKneeLeft}° / ${stats.minAnkleLeft}°`;
-            document.getElementById('max-angle-left').textContent = `${stats.maxKneeLeft}° / ${stats.maxAnkleLeft}°`;
-            document.getElementById('min-angle-right').textContent = `${stats.minKneeRight}° / ${stats.minAnkleRight}°`;
-            document.getElementById('max-angle-right').textContent = `${stats.maxKneeRight}° / ${stats.maxAnkleRight}°`;
+            document.getElementById('min-knee-val').textContent = `${stats.minKneeLeft}° / ${stats.minKneeRight}°`;
+            document.getElementById('max-knee-val').textContent = `${stats.maxKneeLeft}° / ${stats.maxKneeRight}°`;
+            document.getElementById('min-ankle-val').textContent = `${stats.minAnkleLeft}° / ${stats.minAnkleRight}°`;
+            document.getElementById('max-ankle-val').textContent = `${stats.maxAnkleLeft}° / ${stats.maxAnkleRight}°`;
             
-            document.getElementById('gct-left').textContent = `${gctLeftMs} ms`;
-            document.getElementById('gct-right').textContent = `${gctRightMs} ms`;
+            document.getElementById('gct-val').textContent = `${gctLeftMs}ms / ${gctRightMs}ms`;
 
             // Charts
             renderCharts(data);
