@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Skellicap Contributors"}
+    {name = "Ryan Duecker", email="ryan.duecker@gmail.com"}
 ]
 dependencies = [
     "mediapipe==0.10.13",
