@@ -75,6 +75,9 @@ class PoseAnalyzer:
                 knee = side_data['knee']
                 ankle = side_data['ankle']
                 toe = side_data.get('foot_index')
+                shoulder = side_data.get('shoulder')
+                elbow = side_data.get('elbow')
+                wrist = side_data.get('wrist')
 
                 # 1. Calculate Knee Angle (hip-knee-ankle)
                 knee_angle = self.calculate_angle(hip, knee, ankle)
@@ -86,7 +89,25 @@ class PoseAnalyzer:
                     ankle_angle = self.calculate_angle(knee, ankle, toe)
                 frame_analysis['analysis'][side]['ankle_angle'] = ankle_angle
 
-                # 3. Calculate Velocities (Based on toe if available, else ankle)
+                # 3. Calculate Hip Angle (shoulder-hip-knee)
+                hip_angle = 0.0
+                if shoulder:
+                    hip_angle = self.calculate_angle(shoulder, hip, knee)
+                frame_analysis['analysis'][side]['hip_angle'] = hip_angle
+
+                # 4. Calculate Shoulder Angle (hip-shoulder-elbow)
+                shoulder_angle = 0.0
+                if shoulder and elbow:
+                    shoulder_angle = self.calculate_angle(hip, shoulder, elbow)
+                frame_analysis['analysis'][side]['shoulder_angle'] = shoulder_angle
+
+                # 5. Calculate Elbow Angle (shoulder-elbow-wrist)
+                elbow_angle = 0.0
+                if shoulder and elbow and wrist:
+                    elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+                frame_analysis['analysis'][side]['elbow_angle'] = elbow_angle
+
+                # 6. Calculate Velocities (Based on toe if available, else ankle)
                 ref_point = toe if toe else ankle
                 vx, vy, v_agg = 0.0, 0.0, 0.0
                 if prev_landmarks and prev_landmarks[side]:

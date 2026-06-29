@@ -131,6 +131,27 @@
         </div>
 
         <div class="card">
+            <h2>Hip Angles Over Time</h2>
+            <div class="chart-container">
+                <canvas id="hipAngleChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Shoulder Angles Over Time</h2>
+            <div class="chart-container">
+                <canvas id="shoulderAngleChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Elbow Angles Over Time</h2>
+            <div class="chart-container">
+                <canvas id="elbowAngleChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
             <h2>Velocities Over Time (Aggregate)</h2>
             <div class="chart-container">
                 <canvas id="velocityChart"></canvas>
@@ -222,103 +243,141 @@
             };
         });
 
-        window.addEventListener('resize', () => {
-            canvas.style.width = video.clientWidth + 'px';
-            canvas.style.height = video.clientHeight + 'px';
-        });
+        function updateCanvasSize() {
+            if (!video.videoWidth) return;
+            
+            const rect = video.getBoundingClientRect();
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+        }
+
+        window.addEventListener('resize', updateCanvasSize);
+        video.addEventListener('loadedmetadata', updateCanvasSize);
+        video.addEventListener('play', () => requestAnimationFrame(drawOverlay));
 
         function drawOverlay() {
-            if (!analysisData || !video.paused && !video.seeking && video.readyState < 2) {
-                requestAnimationFrame(drawOverlay);
-                return;
-            }
-
-            const fps = (window.currentMetadata && window.currentMetadata.fps) ? window.currentMetadata.fps : 30;
-            const currentFrame = Math.floor(video.currentTime * fps);
-            const frameData = analysisData.find(f => f.frame_index === currentFrame);
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (frameData && frameData.landmarks) {
-                const colors = { left: '#00ff00', right: '#ff0000' };
+            if (!analysisData) return;
+            if (!video.paused || video.seeking || video.readyState >= 2) {
+                const fps = (window.currentMetadata && window.currentMetadata.fps) ? window.currentMetadata.fps : 30;
+                // Use a small epsilon to avoid floating point issues and find the closest frame
+                const targetFrame = Math.round(video.currentTime * fps);
                 
-                ['left', 'right'].forEach(side => {
-                    const l = frameData.landmarks[side];
-                    const a = frameData.analysis[side];
-                    const color = colors[side];
+                // Find the closest frame data efficiently
+                // Since indices are sorted, we could use binary search, but simple find is usually fast enough
+                const frameData = analysisData.find(f => f.frame_index === targetFrame) || 
+                                 analysisData.find(f => Math.abs(f.frame_index - targetFrame) <= 1);
 
-                    // Draw points
-                    [l.hip, l.knee, l.ankle, l.foot_index].forEach(p => {
-                        if (p) {
-                            ctx.fillStyle = color;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (frameData && frameData.landmarks) {
+                    const colors = { left: '#00ff00', right: '#3498db' };
+                    
+                    ['left', 'right'].forEach(side => {
+                        const l = frameData.landmarks[side];
+                        const a = frameData.analysis[side];
+                        const color = colors[side];
+
+                        if (!l || !l.hip) return;
+
+                        // Draw bones
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 4;
+                        ctx.lineJoin = 'round';
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        
+                        // Arm
+                        if (l.shoulder && l.elbow && l.wrist) {
+                            ctx.moveTo(l.shoulder.x, l.shoulder.y);
+                            ctx.lineTo(l.elbow.x, l.elbow.y);
+                            ctx.lineTo(l.wrist.x, l.wrist.y);
+                        }
+                        
+                        // Torso side
+                        if (l.shoulder && l.hip) {
+                            ctx.moveTo(l.shoulder.x, l.shoulder.y);
+                            ctx.lineTo(l.hip.x, l.hip.y);
+                        }
+
+                        // Leg
+                        ctx.moveTo(l.hip.x, l.hip.y);
+                        ctx.lineTo(l.knee.x, l.knee.y);
+                        ctx.lineTo(l.ankle.x, l.ankle.y);
+                        if (l.foot_index) {
+                            ctx.lineTo(l.foot_index.x, l.foot_index.y);
+                        }
+                        ctx.stroke();
+
+                        // Draw points
+                        [l.shoulder, l.elbow, l.wrist, l.hip, l.knee, l.ankle, l.foot_index].forEach(p => {
+                            if (p) {
+                                ctx.fillStyle = color;
+                                ctx.beginPath();
+                                ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                                ctx.fill();
+                                ctx.strokeStyle = 'white';
+                                ctx.lineWidth = 2;
+                                ctx.stroke();
+                            }
+                        });
+
+                        // Draw Angle text
+                        ctx.fillStyle = 'white';
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 1;
+                        ctx.font = 'bold 20px Arial';
+                        
+                        const drawAngle = (val, p, label) => {
+                            if (val && p) {
+                                const text = `${val.toFixed(0)}°`;
+                                ctx.fillText(text, p.x + 10, p.y - 10);
+                                ctx.strokeText(text, p.x + 10, p.y - 10);
+                            }
+                        };
+
+                        drawAngle(a.shoulder_angle, l.shoulder);
+                        drawAngle(a.elbow_angle, l.elbow);
+                        drawAngle(a.hip_angle, l.hip);
+                        drawAngle(a.knee_angle, l.knee);
+                        drawAngle(a.ankle_angle, l.ankle);
+
+                        // Ground Contact Visualizer (Centered on toe/foot_index)
+                        if (a.is_ground_contact) {
+                            const pulsePoint = l.foot_index || l.ankle;
+                            ctx.strokeStyle = '#f1c40f';
+                            ctx.lineWidth = 5;
                             ctx.beginPath();
-                            ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-                            ctx.fill();
+                            ctx.arc(pulsePoint.x, pulsePoint.y, 20, 0, Math.PI * 2);
+                            ctx.stroke();
                         }
                     });
 
-                    // Draw bones
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.moveTo(l.hip.x, l.hip.y);
-                    ctx.lineTo(l.knee.x, l.knee.y);
-                    ctx.lineTo(l.ankle.x, l.ankle.y);
-                    if (l.foot_index) {
-                        ctx.lineTo(l.foot_index.x, l.foot_index.y);
-                    }
-                    ctx.stroke();
-
-                    // Draw Angle text
-                    ctx.fillStyle = 'white';
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 1;
-                    ctx.font = '24px Arial';
-                    
-                    // Knee Angle
-                    const kneeText = `${a.knee_angle.toFixed(1)}°`;
-                    ctx.fillText(kneeText, l.knee.x + 15, l.knee.y);
-                    ctx.strokeText(kneeText, l.knee.x + 15, l.knee.y);
-
-                    // Ankle Angle
-                    if (a.ankle_angle) {
-                        const ankleText = `${a.ankle_angle.toFixed(1)}°`;
-                        ctx.fillText(ankleText, l.ankle.x + 15, l.ankle.y);
-                        ctx.strokeText(ankleText, l.ankle.x + 15, l.ankle.y);
-                    }
-
-                    // Ground Contact Visualizer (Centered on toe/foot_index)
-                    if (a.is_ground_contact) {
-                        const pulsePoint = l.foot_index || l.ankle;
-                        ctx.strokeStyle = '#f1c40f';
-                        ctx.lineWidth = 5;
-                        ctx.beginPath();
-                        ctx.arc(pulsePoint.x, pulsePoint.y, 15, 0, Math.PI * 2);
-                        ctx.stroke();
-                    }
-                });
-
-                // Real-time Stride Stats Overlay
-                if (gaitMetrics && gaitMetrics.strides) {
-                    const lastStride = [...gaitMetrics.strides]
-                        .reverse()
-                        .find(s => s.frame_initiated <= currentFrame);
-                    
-                    if (lastStride) {
-                        const conv = getConversionFactor();
-                        const dist = (lastStride.x_distance * conv.factor).toFixed(1);
-                        const unit = conv.unit;
-                        videoStats.innerHTML = `
-                            Last Stride (${lastStride.side.toUpperCase()}): 
-                            Frame ${lastStride.frame_initiated} | 
-                            Duration: ${lastStride.duration} f | 
-                            Distance: ${dist} ${unit}
-                        `;
+                    // Real-time Stride Stats Overlay
+                    if (gaitMetrics && gaitMetrics.strides) {
+                        const lastStride = [...gaitMetrics.strides]
+                            .reverse()
+                            .find(s => s.frame_initiated <= targetFrame);
+                        
+                        if (lastStride) {
+                            const conv = getConversionFactor();
+                            const dist = (lastStride.x_distance * conv.factor).toFixed(1);
+                            const unit = conv.unit;
+                            videoStats.innerHTML = `
+                                Last Stride (${lastStride.side.toUpperCase()}): 
+                                Frame ${lastStride.frame_initiated} | 
+                                Duration: ${lastStride.duration_ms ? lastStride.duration_ms.toFixed(0) : '-'} ms | 
+                                Distance: ${dist} ${unit}
+                            `;
+                        }
                     }
                 }
             }
 
-            requestAnimationFrame(drawOverlay);
+            if (!video.paused) {
+                requestAnimationFrame(drawOverlay);
+            }
         }
 
         video.addEventListener('play', () => {
@@ -494,7 +553,7 @@
                     labels: labels,
                     datasets: [
                         { label: 'Left Knee', data: data.map(f => f.analysis.left.knee_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
-                        { label: 'Right Knee', data: data.map(f => f.analysis.right.knee_angle), borderColor: '#e74c3c', fill: false, tension: 0.1 }
+                        { label: 'Right Knee', data: data.map(f => f.analysis.right.knee_angle), borderColor: '#3498db', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -508,7 +567,49 @@
                     labels: labels,
                     datasets: [
                         { label: 'Left Ankle', data: data.map(f => f.analysis.left.ankle_angle), borderColor: '#2ecc71', borderDash: [5, 5], fill: false, tension: 0.1 },
-                        { label: 'Right Ankle', data: data.map(f => f.analysis.right.ankle_angle), borderColor: '#e74c3c', borderDash: [5, 5], fill: false, tension: 0.1 }
+                        { label: 'Right Ankle', data: data.map(f => f.analysis.right.ankle_angle), borderColor: '#3498db', borderDash: [5, 5], fill: false, tension: 0.1 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
+            });
+
+            // Hip Angle Chart
+            if (charts.hipAngle) charts.hipAngle.destroy();
+            charts.hipAngle = new Chart(document.getElementById('hipAngleChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Left Hip', data: data.map(f => f.analysis.left.hip_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
+                        { label: 'Right Hip', data: data.map(f => f.analysis.right.hip_angle), borderColor: '#3498db', fill: false, tension: 0.1 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
+            });
+
+            // Shoulder Angle Chart
+            if (charts.shoulderAngle) charts.shoulderAngle.destroy();
+            charts.shoulderAngle = new Chart(document.getElementById('shoulderAngleChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Left Shoulder', data: data.map(f => f.analysis.left.shoulder_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
+                        { label: 'Right Shoulder', data: data.map(f => f.analysis.right.shoulder_angle), borderColor: '#3498db', fill: false, tension: 0.1 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
+            });
+
+            // Elbow Angle Chart
+            if (charts.elbowAngle) charts.elbowAngle.destroy();
+            charts.elbowAngle = new Chart(document.getElementById('elbowAngleChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Left Elbow', data: data.map(f => f.analysis.left.elbow_angle), borderColor: '#2ecc71', fill: false, tension: 0.1 },
+                        { label: 'Right Elbow', data: data.map(f => f.analysis.right.elbow_angle), borderColor: '#3498db', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
@@ -521,8 +622,8 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: `Left Ankle (${speedUnit})`, data: data.map(f => f.analysis.left.velocity.aggregate * conv.speedFactor), borderColor: '#3498db', fill: false, tension: 0.1 },
-                        { label: `Right Ankle (${speedUnit})`, data: data.map(f => f.analysis.right.velocity.aggregate * conv.speedFactor), borderColor: '#9b59b6', fill: false, tension: 0.1 }
+                        { label: `Left Ankle (${speedUnit})`, data: data.map(f => f.analysis.left.velocity.aggregate * conv.speedFactor), borderColor: '#2ecc71', fill: false, tension: 0.1 },
+                        { label: `Right Ankle (${speedUnit})`, data: data.map(f => f.analysis.right.velocity.aggregate * conv.speedFactor), borderColor: '#3498db', fill: false, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }

@@ -15,6 +15,12 @@ class PoseTracker:
             min_tracking_confidence=min_tracking_confidence
         )
         self.landmarks_indices = {
+            'left_shoulder': self.mp_pose.PoseLandmark.LEFT_SHOULDER,
+            'right_shoulder': self.mp_pose.PoseLandmark.RIGHT_SHOULDER,
+            'left_elbow': self.mp_pose.PoseLandmark.LEFT_ELBOW,
+            'right_elbow': self.mp_pose.PoseLandmark.RIGHT_ELBOW,
+            'left_wrist': self.mp_pose.PoseLandmark.LEFT_WRIST,
+            'right_wrist': self.mp_pose.PoseLandmark.RIGHT_WRIST,
             'left_hip': self.mp_pose.PoseLandmark.LEFT_HIP,
             'right_hip': self.mp_pose.PoseLandmark.RIGHT_HIP,
             'left_knee': self.mp_pose.PoseLandmark.LEFT_KNEE,
@@ -50,6 +56,12 @@ class PoseTracker:
         }
         
         mapping = {
+            'left_shoulder': ('left', 'shoulder'),
+            'right_shoulder': ('right', 'shoulder'),
+            'left_elbow': ('left', 'elbow'),
+            'right_elbow': ('right', 'elbow'),
+            'left_wrist': ('left', 'wrist'),
+            'right_wrist': ('right', 'wrist'),
             'left_hip': ('left', 'hip'),
             'right_hip': ('right', 'hip'),
             'left_knee': ('left', 'knee'),
@@ -84,7 +96,7 @@ class PoseTracker:
         # Define colors (BGR)
         colors = {
             'left': (0, 255, 0),   # Green
-            'right': (0, 0, 255)   # Red
+            'right': (255, 0, 0)   # Blue
         }
 
         for side in ['left', 'right']:
@@ -97,7 +109,16 @@ class PoseTracker:
                 cv2.putText(output_frame, f"{side} {part_name}", (coords['x'] + 5, coords['y'] - 5),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
-            # Draw lines (hip to knee, knee to ankle)
+            # Draw lines
+            if 'shoulder' in parts and 'elbow' in parts:
+                cv2.line(output_frame, (parts['shoulder']['x'], parts['shoulder']['y']),
+                         (parts['elbow']['x'], parts['elbow']['y']), color, 2)
+            if 'elbow' in parts and 'wrist' in parts:
+                cv2.line(output_frame, (parts['elbow']['x'], parts['elbow']['y']),
+                         (parts['wrist']['x'], parts['wrist']['y']), color, 2)
+            if 'shoulder' in parts and 'hip' in parts:
+                cv2.line(output_frame, (parts['shoulder']['x'], parts['shoulder']['y']),
+                         (parts['hip']['x'], parts['hip']['y']), color, 2)
             if 'hip' in parts and 'knee' in parts:
                 cv2.line(output_frame, (parts['hip']['x'], parts['hip']['y']),
                          (parts['knee']['x'], parts['knee']['y']), color, 2)
