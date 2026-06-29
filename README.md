@@ -76,3 +76,4 @@ For each frame, the following skeletal points are detected for both left and rig
 - Hip
 - Knee
 - Ankle
+- Foot Index (Toe)
