@@ -540,8 +540,8 @@
                     <tr>
                         <th>Quartile</th>
                         <th>Side</th>
-                        <th>Min Angle</th>
-                        <th>Max Angle</th>
+                        <th>Min Knee/Ankle</th>
+                        <th>Max Knee/Ankle</th>
                         <th>Avg GCT (ms)</th>
                         <th>Avg Vel (${speedUnit})</th>
                         <th>Avg Stride (${distUnit})</th>
@@ -571,9 +571,9 @@
                     tr.innerHTML = `
                         <td>Q${i + 1}</td>
                         <td>${side}</td>
-                        <td>${isLeft ? qStats.minLeft : qStats.minRight}°</td>
-                        <td>${isLeft ? qStats.maxLeft : qStats.maxRight}°</td>
-                        <td>${(gct * msPerFrame).toFixed(1)}</td>
+                        <td>${isLeft ? qStats.minKneeLeft : qStats.minKneeRight}° / ${isLeft ? qStats.minAnkleLeft : qStats.minAnkleRight}°</td>
+                        <td>${isLeft ? qStats.maxKneeLeft : qStats.maxKneeRight}° / ${isLeft ? qStats.maxAnkleLeft : qStats.maxAnkleRight}°</td>
+                        <td>${(parseFloat(gct) * msPerFrame).toFixed(1)}</td>
                         <td>${(vel * conv.speedFactor).toFixed(1)}</td>
                         <td>${(stride * conv.factor).toFixed(1)}</td>
                     `;
